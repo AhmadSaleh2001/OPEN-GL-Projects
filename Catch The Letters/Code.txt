@@ -1,0 +1,229 @@
+#include <GL/freeglut.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <math.h>
+#include<iostream>
+#include<vector>
+#include<queue>
+#include<stack>
+#include<string>
+#include<Windows.h>
+using namespace std;
+deque<vector<int>>V;
+int TimerForDown = 0;
+int TimerForGenerate = 0;
+bool Picked[26];
+int Score = 0;
+int Refresh = 0;
+bool FoundWrong = 0;
+string Word = "Your Score : ";
+bool CheckAndDelete(unsigned char C)
+{
+	int Pos = -1;
+	for (int i = 0; i < V.size(); i++)
+	{
+		if (V[i][2] == C)
+		{
+			Pos = i;
+			break;
+		}
+	}
+	if (~Pos)
+	{
+		Picked[V[Pos][2] - 'A'] = 0;
+		V.erase(next(V.begin(), Pos));
+		return 1;
+	}
+	return 0;
+}
+void Init()
+{
+	glClearColor(0.4, 0.7, 1, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glViewport(0, 0, 500, 500);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+
+
+	gluOrtho2D(0, 500, 0, 500);
+
+	glMatrixMode(GL_MODELVIEW);
+	glPointSize(1);
+	glBegin(GL_POINTS);
+	glVertex2i(1, 1);
+	glEnd();
+
+
+}
+
+void DrawCity()
+{
+	glColor3ub(0, 255, 0);
+	glRecti(0, 0, 500, 100); // Draw Garden
+
+	glColor3ub(2, 0, 45);
+	glRecti(0, 20, 500, 80); // Draw Street
+
+	glColor3ub(255, 255, 255);
+	int Start = 10;
+	for (int i = 1; i <= 5; i++) // Darw Lines
+	{
+		glRecti(Start, 40, Start + 50, 60);
+		Start += 100;
+	}
+}
+
+void Draw()
+{
+	glClearColor(0.4, 0.7, 1, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity();
+
+
+	DrawCity();
+
+	glColor3ub(255, 255, 255);
+	string CurrLine = Word + to_string(Score);
+	int X = 20;
+	for (char C : CurrLine)
+	{
+		glRasterPos2f(X, 480);
+		glutBitmapCharacter(GLUT_BITMAP_9_BY_15, C);
+		X += 10;
+	}
+
+
+	if (TimerForDown == 200)
+	{
+
+		for (auto& X : V)X[1] -= 20;
+		while (V.size())
+		{
+			vector<int>Point = V.front();
+			if (Point[1] <= 100)
+			{
+				Picked[Point[2] - 'A'] = 0;
+				V.pop_front();
+				FoundWrong = 0;
+				Refresh = 0;
+			}
+			else break;
+		}
+		TimerForDown = 0;
+	}
+
+	if (TimerForGenerate == 1000)
+	{
+		int RandChar = rand() % 26 + 65;
+		while (Picked[RandChar - 65])RandChar = rand() % 26 + 65;
+
+		Picked[RandChar - 'A'] = 1;
+		V.push_back({ rand() % 461 + 20, 500 , RandChar , 255  , 255 , 255 });
+		TimerForGenerate = 0;
+	}
+
+	TimerForDown++;
+	TimerForGenerate++;
+	Refresh += FoundWrong;
+
+	glPointSize(40);
+	glBegin(GL_POINTS);
+	for (vector<int>& Point : V)
+	{
+		glColor3ub(Point[3], Point[4], Point[5]);
+		glVertex2i(Point[0], Point[1]);
+		if (Refresh >= 500)Point[3] = Point[4] = Point[5] = 255;
+	}
+	glEnd();
+
+	if (Refresh >= 500)
+	{
+		FoundWrong = 0;
+		Refresh = 0;
+	}
+
+	glColor3ub(0, 0, 0);
+	for (vector<int>& Point : V)
+	{
+		glRasterPos2f(Point[0] - 8, Point[1] - 8);
+		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, Point[2]);
+	}
+
+
+
+
+
+	glutPostRedisplay();
+	glutSwapBuffers();
+	glFlush();
+}
+
+void HandleMouse(int wheel, int direction, int x, int y)
+{
+
+}
+
+
+
+void OnReshape(int W, int H)
+{
+
+	glViewport(0, 0, W, H);
+	gluPerspective(60, W / H, 1, 10);
+
+}
+
+/*
+void HandlePassiveMouse(int X, int Y)
+{
+	cout << X << " " << Y << "\n";
+
+	if (X < 5 || X > 495)SetCursorPos(350, Y + 100);
+	if (Y < 5 || Y > 495)SetCursorPos(X + 100, 350);
+}
+*/
+
+void HandleKeyboard(unsigned char C, int X, int Y)
+{
+	if (CheckAndDelete(C))Score++;
+	else
+	{
+		if (V.size())V[0][4] = V[0][5] = 0;
+		Score = 0;
+		FoundWrong = 1;
+		Refresh = 0;
+	}
+}
+
+int main(int argc, char** argv)
+{
+	srand(time(0));
+	memset(Picked, 0, sizeof Picked);
+
+	V = { {50 , 480 , 'A' , 255 , 255 , 255} };
+	Picked['A' - 65] = 1;
+
+
+
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
+	glutInitWindowSize(500, 500);
+	glutInitWindowPosition(100, 100);
+
+
+	int X = glutCreateWindow("Catch The Letters");
+
+
+
+	Init();
+	glutDisplayFunc(Draw);
+	glutReshapeFunc(OnReshape);
+	glutMouseFunc(HandleMouse);
+	glutKeyboardFunc(HandleKeyboard);
+	//glutPassiveMotionFunc(HandlePassiveMouse);
+	glutMainLoop();
+
+	return 0;
+}
