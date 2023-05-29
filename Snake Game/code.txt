@@ -1,0 +1,294 @@
+#include<iostream>
+#include<vector>
+#include<queue>
+#include<deque>
+#include<math.h>
+#include<time.h>
+#include<string>
+#include<random>
+#include <GL/glut.h>
+using namespace std;
+GLubyte Colors[4][3] = {
+	{255 , 0 , 0},
+	{0, 255 , 0},
+	{0, 0 , 255},
+	{255, 255 , 0},
+};
+pair<double, double>LastStep = { 0.1 , 0 };
+pair<double, double>LastPoint = { 300 , 200 };
+int Score = 0;
+bool Loser = 0;
+struct Item
+{
+	double X, Y;
+	deque<pair<double, double>>Q;
+	int Frq[4] = { 0 };
+	bool Head = 0;
+	Item(double X, double Y , bool Head = 0)
+	{
+		this->X = X;
+		this->Y = Y;
+		this->Head = Head;
+	}
+	Item(double X, double Y, deque<pair<double, double>>Q)
+	{
+		this->X = X;
+		this->Y = Y;
+		this->Q = Q;
+	}
+
+	Item()
+	{
+
+	}
+
+	int GetCode(pair<double, double>Step)
+	{
+		if (Step.first == 0.1)return 0;
+		else if (Step.first == -0.1)return 1;
+		else if (Step.second == 0.1)return 2;
+		return 3;
+	}
+
+	void AddSteps(pair<double, double>Step, int Cnt, int Type = 0)
+	{
+		for (int i = 1; i <= Cnt; i++)
+		{
+			Frq[GetCode(Step)]++;
+			if (!Type)Q.push_back(Step);
+			else Q.push_front(Step);
+		}
+	}
+	void SetNewPos()
+	{
+		pair<double, double>F = Q.front();
+		Frq[GetCode(F)]--;
+		Q.pop_front();
+		this->X += F.first;
+		this->Y += F.second;
+	}
+};
+
+vector<Item*>Snake;
+void AddNewItemToSnake()
+{
+	Item* Last = Snake.back();
+	Item* NewItem;
+	pair<double, double>FirstDir = Last->Q.front();
+
+	if (FirstDir.first == 0.1)NewItem = new Item(Last->X - 20, Last->Y, Last->Q);
+	else if (FirstDir.first == -0.1)NewItem = new Item(Last->X + 20, Last->Y, Last->Q);
+	else if (FirstDir.second == 0.1)NewItem = new Item(Last->X, Last->Y - 20, Last->Q);
+	else NewItem = new Item(Last->X, Last->Y + 20, Last->Q);
+
+	NewItem->AddSteps(FirstDir, 200, 1);
+
+	Snake.push_back(NewItem);
+}
+bool IsBetween(pair<double, double>Curr, double X1, double X2, double Y1, double Y2)
+{
+	return Curr.first >= X1 && Curr.first <= X2 && Curr.second >= Y1 && Curr.second <= Y2;
+}
+bool IsIntersect(pair<double, double>& LastPoint)
+{
+	bool Ans = 0;
+
+	// Positions First Square
+
+	pair<double, double>First = { Snake[0]->X - 7.5 , Snake[0]->Y + 7.5 };
+	pair<double, double>Second = { Snake[0]->X + 7.5 , Snake[0]->Y + 7.5 };
+	pair<double, double>Third = { Snake[0]->X - 7.5 , Snake[0]->Y - 7.5 };
+	pair<double, double>Fourth = { Snake[0]->X + 7.5 , Snake[0]->Y + 7.5 };
+
+
+	double X1 = LastPoint.first - 7.5;
+	double X2 = LastPoint.first + 7.5;
+
+	double Y1 = LastPoint.second - 7.5;
+	double Y2 = LastPoint.second + 7.5;
+
+	Ans |= IsBetween(First, X1, X2, Y1, Y2);
+	Ans |= IsBetween(Second, X1, X2, Y1, Y2);
+	Ans |= IsBetween(Third, X1, X2, Y1, Y2);
+	Ans |= IsBetween(Fourth, X1, X2, Y1, Y2);
+
+
+
+
+	return Ans;
+}
+pair<double, double>GetRandomPoint()
+{
+	int X = rand() % 450 + 20;
+	int Y = rand() % 450 + 20;
+
+
+	return { X , Y };
+}
+void Solve()
+{
+
+
+
+	glClearColor(0.9, 0.2, 0.2, 0.6);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+
+	if (!Loser)
+	{
+		glColor3ub(0, 0, 0);
+
+		Loser |= Snake[0]->X < 0 || Snake[0]->X > 500;
+		Loser |= Snake[0]->Y < 0 || Snake[0]->Y > 500;
+		for (int i = 3; i < Snake.size(); i++)
+		{
+			pair<double, double>Curr = { Snake[i]->X , Snake[i]->Y };
+			Loser |= IsIntersect(Curr);
+
+		}
+
+		if (IsIntersect(LastPoint))
+		{
+			LastPoint = GetRandomPoint();
+			AddNewItemToSnake();
+			Score++;
+		}
+
+		glPointSize(15);
+		glBegin(GL_POINTS);
+		glVertex2i(LastPoint.first, LastPoint.second);
+		glEnd();
+
+
+		//cout << Snake[0]->X << " " << Snake[0]->Y << "\n";
+		//cout << "\n\n";
+
+
+		for (int i = 0; i < Snake.size(); i++)
+		{
+			//cout<<i<<" : " << Snake[i]->Q.size() << "\n";
+			Snake[i]->AddSteps(LastStep, 1);
+		}
+		//cout << "\n\n";
+
+
+		glColor3ub(255, 255, 255);
+		glBegin(GL_POINTS);
+		for (auto& Element : Snake)
+		{
+			Element->SetNewPos();
+			if (Element->Head)glColor3ubv(Colors[rand() % 4]);
+			else glColor3ub(255, 255, 255);
+			glVertex2d(Element->X, Element->Y);
+		}
+		glEnd();
+
+		glColor3ub(255, 255, 255);
+		vector<string>Msgs = { "Your Score : " + to_string(Score) };
+		int Y = 450;
+		for (string& Msg : Msgs)
+		{
+			int X = 10;
+			for (char C : Msg)
+			{
+				glRasterPos2f(X, Y);
+				glutBitmapCharacter(GLUT_BITMAP_9_BY_15, C);
+				X += 10;
+			}
+			Y -= 100;
+		}
+
+	}
+	else
+	{
+		glColor3ub(255, 255, 255);
+		vector<string>Msgs = {
+			"LOSER LOSER LOSER",
+			"Your Score : " + to_string(Score),
+			"PRESS R To Reset Game"
+		};
+		int Y = 400;
+		for (string& Msg : Msgs)
+		{
+			int X = 150;
+			for (char C : Msg)
+			{
+				glRasterPos2f(X, Y);
+				glutBitmapCharacter(GLUT_BITMAP_9_BY_15, C);
+				X += 10;
+			}
+			Y -= 100;
+		}
+	}
+
+
+	glFlush();
+
+}
+
+void RunForEver(int)
+{
+	glutPostRedisplay();
+	glutTimerFunc(1, RunForEver, 0);
+}
+void ResetGame()
+{
+	Loser = 0;
+	Snake.clear();
+	LastStep = { 0.1 , 0 };
+	LastPoint = { 300 , 200 };
+	for (int i = 1; i <= 1; i++)
+	{
+		Item* Here;
+		if (i == 1)Here = new Item(200, 200, 1);
+		else
+		{
+			Item* Last = Snake.back();
+			Here = new Item(Last->X - 20, Last->Y);
+		}
+		Here->AddSteps(LastStep, i == 1 ? 1 : (i - 1) * 200);
+		Snake.push_back(Here);
+	}
+}
+void HandleKeyboard(unsigned char C, int X, int Y)
+{
+	if (C == 'r' || C == 'R')
+	{
+		ResetGame();
+	}
+	double ByX = 0, ByY = 0;
+	if (C == 'd' && LastStep.first != -0.1)ByX = 0.1;
+	else if (C == 'a' && LastStep.first != 0.1)ByX = -0.1;
+	else if (C == 'w' && LastStep.second != -0.1)ByY = 0.1;
+	else if (C == 's' && LastStep.second != 0.1)ByY = -0.1;
+
+	if (ByX || ByY)LastStep = { ByX , ByY };
+
+}
+
+void main(int argc, char** argv)
+{
+
+	srand(time(0));
+
+	ResetGame();
+
+
+	
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+	glutInitWindowPosition(100, 100);
+	glutInitWindowSize(500, 500);
+
+	glutCreateWindow("Main Window");
+	gluOrtho2D(0, 500, 0, 500);
+
+	glutTimerFunc(0, RunForEver, 0);
+	glutKeyboardFunc(HandleKeyboard);
+	glutDisplayFunc(Solve);
+
+
+
+	glutMainLoop();
+}
