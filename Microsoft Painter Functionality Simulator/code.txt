@@ -1,0 +1,364 @@
+#include <math.h>
+#include <GL/freeglut.h>
+#include<iostream>
+#include<vector>
+using namespace std;
+vector<vector<int>>Squares;
+vector<vector<int>>Triangles;
+vector<vector<int>>Circles;
+vector<int>CurrPoint;
+pair<int, int>IdxCurrObject = { -1 , -1 };
+GLubyte Colors[4][3] = {
+	{255 , 0 , 0},
+	{0, 255 , 0},
+	{0, 0 , 255},
+	{255, 255 , 0},
+};
+void Init()
+{
+	glClearColor(0.4, 0.7, 1, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glViewport(0, 0, 500, 500);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+
+	gluOrtho2D(0, 500, 0, 500);
+
+	//glMatrixMode(GL_MODELVIEW);
+
+	glMatrixMode(GL_MODELVIEW);
+
+}
+vector<int> GetRealPoint(int X, int Y)
+{
+	return { X , 500 - Y };
+}
+
+bool IsInsideThisSquare(vector<int>& NewP, vector<int> OldP)
+{
+	return ((NewP[0] >= OldP[0] && NewP[0] <= OldP[0] + OldP[3]) && (NewP[1] >= OldP[1] - OldP[3] && NewP[1] <= OldP[1]));
+}
+
+bool IsInsideThisCircle(vector<int>& NewP, vector<int> OldP)
+{
+	return ((NewP[0] >= OldP[0] - OldP[3]) && (NewP[0] <= OldP[0] + OldP[3])) && ((NewP[1] >= OldP[1] - OldP[3]) && (NewP[1] <= OldP[1] + OldP[3]));
+}
+
+double CalcArea(int X1, int Y1, int X2, int Y2, int X3, int Y3)
+{
+	return abs((X1 * (Y2 - Y3) + X2 * (Y3 - Y1) + X3 * (Y1 - Y2)) / 2.0);
+}
+bool IsInsideThisTriangle(vector<int>& NewP, vector<int> OldP)
+{
+	int X1 = OldP[0] - OldP[3];
+	int Y1 = OldP[1] - OldP[3];
+
+	int X2 = OldP[0] + OldP[3];
+	int Y2 = OldP[1] - OldP[3];
+
+	int X3 = OldP[0];
+	int Y3 = OldP[1];
+
+
+	double Area = CalcArea(X1, Y1, X2, Y2, X3, Y3);
+	double Area1 = CalcArea(NewP[0], NewP[1], X2, Y2, X3, Y3);
+	double Area2 = CalcArea(X1, Y1, NewP[0], NewP[1], X3, Y3);
+	double Area3 = CalcArea(X1, Y1, X2, Y2, NewP[0], NewP[1]);
+
+	//cout << Area << " " << Area1 << " " << Area2 << " " << Area3 << "\n\n";
+	return (Area == Area1 + Area2 + Area3);
+}
+
+void DeActiveCurr()
+{
+	if (~IdxCurrObject.first)
+	{
+		if (IdxCurrObject.second == 1)
+		{
+			Squares[IdxCurrObject.first][2] = 0;
+		}
+		else if (IdxCurrObject.second == 2)
+		{
+			Triangles[IdxCurrObject.first][2] = 0;
+		}
+		else Circles[IdxCurrObject.first][2] = 0;
+
+	}
+}
+
+void ActiveCurr()
+{
+	if (~IdxCurrObject.first)
+	{
+		if (IdxCurrObject.second == 1)
+		{
+			Squares[IdxCurrObject.first][2] = 1;
+		}
+		else if (IdxCurrObject.second == 2)
+		{
+			Triangles[IdxCurrObject.first][2] = 1;
+		}
+		else Circles[IdxCurrObject.first][2] = 1;
+
+	}
+}
+void DrawSquare(vector<int>& V)
+{
+
+	glPushMatrix();
+
+	glBegin(GL_LINE_LOOP);
+
+	if (V[2])glColor3ubv(Colors[rand() % 4]);
+	else glColor3ubv(Colors[0]);
+	glVertex2i(V[0], V[1]);
+
+
+	if (V[2])glColor3ubv(Colors[rand() % 4]);
+	else glColor3ubv(Colors[0]);
+	glVertex2i(V[0] + V[3], V[1]);
+
+
+
+	if (V[2])glColor3ubv(Colors[rand() % 4]);
+	else glColor3ubv(Colors[0]);
+	glVertex2i(V[0] + V[3], V[1] - V[3]);
+
+
+	if (V[2])glColor3ubv(Colors[rand() % 4]);
+	else glColor3ubv(Colors[0]);
+	glVertex2i(V[0], V[1] - V[3]);
+
+	glEnd();
+	glPopMatrix();
+}
+
+void DrawTriangle(vector<int>& V)
+{
+	glPushMatrix();
+
+	glBegin(GL_LINE_LOOP);
+
+	if (V[2])glColor3ubv(Colors[rand() % 4]);
+	else glColor3ubv(Colors[0]);
+	glVertex2i(V[0], V[1]);
+
+
+
+	if (V[2])glColor3ubv(Colors[rand() % 4]);
+	else glColor3ubv(Colors[0]);
+	glVertex2i(V[0] + V[3], V[1] - V[3]);
+
+
+	if (V[2])glColor3ubv(Colors[rand() % 4]);
+	else glColor3ubv(Colors[0]);
+	glVertex2i(V[0] - V[3], V[1] - V[3]);
+
+
+	glEnd();
+	glPopMatrix();
+}
+
+void DrawCircle(vector<int>& V)
+{
+	glPushMatrix();
+
+
+	glPointSize(1);
+	for (int i = 0; i < 360; i++)
+	{
+		int X = V[0] + V[3] * cos(i);
+		int Y = V[1] + V[3] * sin(i);
+		glBegin(GL_POINTS);
+		if (V[2])glColor3ubv(Colors[rand() % 4]);
+		else glColor3ubv(Colors[0]);
+		glVertex2f(X, Y);
+		glEnd();
+	}
+
+	glPopMatrix();
+}
+
+
+void Draw()
+{
+	glClearColor(0.4, 0.7, 1, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity();
+
+
+
+
+
+	for (auto& X : Squares)DrawSquare(X);
+	for (auto& X : Triangles)DrawTriangle(X);
+	for (auto& X : Circles)DrawCircle(X);
+
+
+
+	glutPostRedisplay();
+	glutSwapBuffers();
+	glFlush();
+
+
+}
+
+
+void OnReshape(int W, int H)
+{
+
+	glViewport(0, 0, W, H);
+	gluPerspective(60, W / H, 1, 10);
+
+}
+
+void HandleMouse(int Button, int State, int X, int Y)
+{
+
+
+	if (Button == GLUT_LEFT_BUTTON && State == GLUT_DOWN) {
+		//cout << X << " " << 500 - Y << "\n";
+		CurrPoint = GetRealPoint(X, Y);
+	}
+
+	if (Button == GLUT_LEFT_BUTTON && State == GLUT_UP) {
+		vector<int>Now = GetRealPoint(X, Y);
+
+		//cout << CurrPoint[0] << " " << CurrPoint[1] << " -> " << X << " " << Y << "\n";
+		if (IsInsideThisSquare(CurrPoint, Squares[0]))
+		{
+			//cout<<"yes new point " << Now[0] << " " << Now[1] << "\n";
+			DeActiveCurr();
+			Squares.push_back({ Now[0] - 25 , Now[1] + 25 , 0 , 50 });
+			IdxCurrObject.first = Squares.size() - 1;
+			IdxCurrObject.second = 1;
+			ActiveCurr();
+			//cout << Squares.back()[2] << "\n";
+		}
+		else if (IsInsideThisTriangle(CurrPoint, Triangles[0]))
+		{
+			//cout<<"yes new point Tr " << Now[0] << " " << Now[1] << "\n";
+			DeActiveCurr();
+			Triangles.push_back({ Now[0] , Now[1] + 25 , 0 , 50 });
+			IdxCurrObject.first = Triangles.size() - 1;
+			IdxCurrObject.second = 2;
+			ActiveCurr();
+		}
+		else if (IsInsideThisCircle(CurrPoint, Circles[0]))
+		{
+			//cout<<"yes new point Cr " << Now[0] << " " << Now[1] << "\n";
+
+			DeActiveCurr();
+
+			Circles.push_back({ Now[0], Now[1] , 0 , 40 });
+
+
+			IdxCurrObject.first = Circles.size() - 1;
+			IdxCurrObject.second = 3;
+			ActiveCurr();
+
+		}
+		else
+		{
+			//cout<<"Curr : " << CurrPoint[0] << " " << CurrPoint[1] << "\n";
+			DeActiveCurr();
+			for (int i = 1; i < Squares.size(); i++)
+			{
+				if (IsInsideThisSquare(CurrPoint, Squares[i]))
+				{
+
+					Squares[i][0] = Now[0] - Squares[i][3] / 2;
+					Squares[i][1] = Now[1] + Squares[i][3] / 2;
+					Squares[i][2] = 0;
+					IdxCurrObject.first = i;
+					IdxCurrObject.second = 1;
+					ActiveCurr();
+					return;
+				}
+			}
+
+			for (int i = 1; i < Triangles.size(); i++)
+			{
+				if (IsInsideThisTriangle(CurrPoint, Triangles[i]))
+				{
+
+
+					Triangles[i][0] = Now[0];
+					Triangles[i][1] = Now[1] + Triangles[i][3] / 2;
+					Triangles[i][2] = 0;
+
+					IdxCurrObject.first = i;
+					IdxCurrObject.second = 2;
+					ActiveCurr();
+					return;
+				}
+			}
+
+			for (int i = 1; i < Circles.size(); i++)
+			{
+				if (IsInsideThisCircle(CurrPoint, Circles[i]))
+				{
+
+
+
+					Circles[i][0] = Now[0];
+					Circles[i][1] = Now[1];
+					Circles[i][2] = 0;
+
+					IdxCurrObject.first = i;
+					IdxCurrObject.second = 3;
+					ActiveCurr();
+					return;
+				}
+			}
+			IdxCurrObject = { -1 , -1 };
+		}
+	}
+	else if (Button == GLUT_RIGHT_BUTTON && State == GLUT_DOWN)
+	{
+
+	}
+}
+
+
+void HandleKeyboard(unsigned char C, int X, int Y)
+{
+	if (IdxCurrObject.first == -1)return;
+	int By = 0;
+	if (C == '-')By = -1;
+	else By = 1;
+
+	if (IdxCurrObject.second == 1)Squares[IdxCurrObject.first][3] += By;
+	if (IdxCurrObject.second == 2)Triangles[IdxCurrObject.first][3] += By;
+	if (IdxCurrObject.second == 3)Circles[IdxCurrObject.first][3] += By;
+}
+int main(int argc, char** argv)
+{
+	srand(time(0));
+
+
+	Squares.push_back({ 50 , 350 , 1 , 50 });
+	Triangles.push_back({ 70 , 270 , 1 , 50 });
+	Circles.push_back({ 70 , 140 , 1 , 40 });
+
+
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
+	glutInitWindowSize(500, 500);
+	glutInitWindowPosition(100, 100);
+
+
+	int X = glutCreateWindow("Visualize Some Functionality from Microsoft Painter");
+	Init();
+	glutDisplayFunc(Draw);
+	glutReshapeFunc(OnReshape);
+	glutMouseFunc(HandleMouse);
+	glutKeyboardFunc(HandleKeyboard);
+
+
+
+	glutMainLoop();
+
+	return 0;
+}
