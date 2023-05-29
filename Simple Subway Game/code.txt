@@ -1,0 +1,242 @@
+#include <GL/freeglut.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <math.h>
+#include<iostream>
+#include<vector>
+#include<queue>
+#include<stack>
+#include<string>
+#include<Windows.h>
+using namespace std;
+
+deque<vector<double>>V;
+int Timer = 0;
+int TimerToGenerate = 0;
+double MainX = 0;
+int Score = 0;
+double PosS[3] = { -2 , 0 , 2 };
+bool Loser = 1;
+GLubyte Colors[4][3] = {
+	{255 , 0 , 0},
+	{0, 255 , 0},
+	{0, 0 , 255},
+	{255, 255 , 0},
+};
+
+void Init()
+{
+	glClearColor(0.4, 0.7, 1, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glViewport(0, 0, 500, 500);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	//gluOrtho2D(0, 500, 0, 500);
+	gluPerspective(60, 500 / 500, 0.01, 30);
+	glMatrixMode(GL_MODELVIEW);
+	//gluOrtho2D(0, 500, 0, 500);
+
+}
+
+void DrawDashes(double Z)
+{
+	for (int i = -1; i <= 1; i += 2)
+	{
+
+		glBegin(GL_QUADS);
+		glVertex3f(i, 0, Z);
+		glVertex3f(i + 0.1, 0, Z);
+		glVertex3f(i + 0.1, 0, Z + 2);
+		glVertex3f(i - 0.1, 0, Z + 2);
+		glEnd();
+	}
+}
+
+
+void Draw()
+{
+	glClearColor(0.4, 0.7, 1, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity();
+
+
+
+
+
+
+
+	if (!Loser)
+	{
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		gluPerspective(60, 500 / 500, 0.01, 30);
+		glMatrixMode(GL_MODELVIEW);
+		gluLookAt(
+			0, 3, 25,
+			0, 0, 0,
+			0, 1, 0
+		);
+
+		Timer++;
+		TimerToGenerate++;
+		if (Timer == 100)
+		{
+			for (auto& X : V)
+			{
+				X[2] += 0.4;
+				Loser |= X[2] >= 19 && X[0] == MainX;
+			}
+			Timer = 0;
+			while (V.size() && V.front()[2] > 19)V.pop_front(), ++Score;
+		}
+
+
+		if (TimerToGenerate == 2000)
+		{
+			V.push_back({ PosS[rand() % 3] , 0 , 1 , (double)(rand() % 3 + 1) });
+			TimerToGenerate = 0;
+		}
+
+
+
+
+
+		// Draw Street
+
+		glColor3ub(2, 2, 57);		// Draw Main Stree
+		glBegin(GL_QUADS);
+		glVertex3f(-3, 0, 1);
+		glVertex3f(3, 0, 1);
+		glVertex3f(3, 0, 30);
+		glVertex3f(-3, 0, 30);
+		glEnd();
+
+
+		// Draw Borders Of Street
+		glColor3ub(255, 255, 255);
+
+		// Draw Right Border
+
+
+		for (int i = 3; i <= 30; i += 3)
+		{
+			DrawDashes(i);
+		}
+
+		for (auto& X : V)
+		{
+			glPushMatrix();
+			glTranslatef(X[0], X[1], X[2]);
+			if (X[3])glColor3ubv(Colors[(int)X[3]]);
+			else glColor3ubv(Colors[rand() % 4]);
+			glutSolidCube(1);
+			glPopMatrix();
+		}
+
+		glPushMatrix();
+		glTranslatef(MainX, 0, 19);
+		glColor3ubv(Colors[0]);
+		glutSolidCube(1);
+		glPopMatrix();
+
+	}
+	else
+	{
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		gluOrtho2D(0, 500, 0, 500);
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+
+
+		glColor3ub(255, 255, 255);
+		vector<string>Msgs = {
+			"LOSER LOSER LOSER",
+			"Your Score : " + to_string(Score),
+			"PRESS R To Reset Game"
+		};
+		int Y = 400;
+		for (string& Msg : Msgs)
+		{
+			int X = 150;
+			for (char C : Msg)
+			{
+				glRasterPos2f(X, Y);
+				glutBitmapCharacter(GLUT_BITMAP_9_BY_15, C);
+				X += 10;
+			}
+			Y -= 100;
+		}
+	}
+
+	glutPostRedisplay();
+	glutSwapBuffers();
+	glFlush();
+}
+
+void HandleMouse(int wheel, int direction, int x, int y)
+{
+
+}
+
+
+
+void OnReshape(int W, int H)
+{
+
+	glViewport(0, 0, W, H);
+	gluPerspective(60, W / H, 1, 10);
+
+}
+
+
+void ResetGame()
+{
+	Timer = 0;
+	TimerToGenerate = 0;
+	MainX = 0;
+	Score = 0;
+	Loser = 0;
+	V.clear();
+}
+
+void HandleKeyboard(unsigned char C, int X1, int Y1)
+{
+	//cout << C << "\n";
+	if (C == 'a' && MainX > -2)MainX -= 2;
+	else if (C == 'd' && MainX < 2)MainX += 2;
+	else if (C == 'r' || C == 'R')ResetGame();
+}
+
+int main(int argc, char** argv)
+{
+	srand(time(0));
+
+
+
+
+
+
+
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
+	glutInitWindowSize(500, 500);
+	glutInitWindowPosition(100, 100);
+
+
+	int X = glutCreateWindow("Simple Subway Game");
+
+
+
+	Init();
+	glutDisplayFunc(Draw);
+	glutReshapeFunc(OnReshape);
+	glutMouseFunc(HandleMouse);
+	glutKeyboardFunc(HandleKeyboard);
+	//glutPassiveMotionFunc(HandlePassiveMouse);
+	glutMainLoop();
+
+	return 0;
+}
